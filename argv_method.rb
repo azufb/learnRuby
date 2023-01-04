@@ -8,9 +8,10 @@ end
 
 =end
 
-def argvMethod(argvName)
-    name = argvName
-    puts("こんにちは、#{name}さん！")
+def argvMethod(argvNames)
+    argvNames.each do |name|
+        puts("こんにちは、#{name}さん！")
+    end
 end
 
-argvMethod(ARGV[0])
+argvMethod(ARGV)
