@@ -2,8 +2,10 @@ require_relative "jzipcode"
 
 start_time = Time.now # 処理開始の現在時刻取得
 db = File.join(__dir__, "data/jzipcode.db")
-csv = File.join(__dir__, "data/KEN_ALL.CSV")
 jzipcode = JZipCode.new(db)
+jzipcode.get_file("data/ken_all.zip")
+
+csv = File.join(__dir__, "data/KEN_ALL.CSV")
 jzipcode.create(csv)
 
 keyword = ARGV[0]
