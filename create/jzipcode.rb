@@ -1,4 +1,6 @@
-require "sqlite3" # gemの読み込み
+require "sqlite3" # gem「sqlite3」読み込み
+require 'zip' # gem「rubyzip」読み込み
+require "open-uri"
 require "csv"
 
 class JZipCode
@@ -9,12 +11,32 @@ class JZipCode
         @dbfile = dbfile
     end
 
+    # zipファイルの取得と解凍
+    def get_file(fileUrl)
+        # ファイル読み込み
+        Zip::File.open(fileUrl) do |zip|
+            zip.each do |entry|
+                # ファイル名取得
+                filename = entry.name
+
+                # 解凍(CSVファイルがあれば、この処理は飛ばす)
+                if File.exist?("data/#{filename}")
+                    next
+                else
+                    zip.extract(entry, "data/#{filename}")
+                end
+            end
+
+            entry = zip.glob("data/*.csv").first
+        end
+    end
+
     # テーブルの作成とデータ登録
     def create(zipfile)
         return if File.exist?(@dbfile)
 
         SQLite3::Database.open(@dbfile) do |db|
-            db.execute(<<- SQL)
+            db.execute(<<-SQL)
                 CREATE TABLE IF NOT EXISTS zip_codes
                 (code TEXT, pref TEXT, city TEXT, addr TEXT, alladdr TEXT)
             SQL
@@ -25,7 +47,7 @@ class JZipCode
                     data = Hash.new
                     CSV_COLUMN.each { |key, index| data[key] = rec[index] }
                     data[:alladdr] = data[:pref] + data[:city] + data[:addr]
-                    db.execute(<<- SQL, data)
+                    db.execute(<<-SQL, data)
                         INSERT INTO zip_codes VALUES
                             (:code, :pref, :city, :addr, :alladdr)
                     SQL
@@ -40,7 +62,7 @@ class JZipCode
     def find_by_code(code)
         ret = []
         SQLite3::Database.open(@dbfile) do |db|
-            db.execute(<<- SQL, code) { |row| ret << row.join(" ") }
+            db.execute(<<-SQL, code) { |row| ret << row.join(" ") }
                 SELECT code, alladdr
                     FROM zip_codes
                 WHERE code = ?
@@ -55,10 +77,10 @@ class JZipCode
         SQLite3::Database.open(@dbfile) do |db|
             # 部分一致検索で使う文字列
             like = "%#{addr}%"
-            db.execute(<<- SQL, like) { |row| ret << row.join(" ") }
+            # カラム名 LIKE "%文字列%"で部分一致検索できる。
+            db.execute(<<-SQL, like) { |row| ret << row.join(" ") }
                 SELECT code, alladdr
                     FROM zip_codes
-                # カラム名 LIKE "%文字列%"で部分一致検索できる。
                 WHERE alladdr LIKE ?
             SQL
         end
